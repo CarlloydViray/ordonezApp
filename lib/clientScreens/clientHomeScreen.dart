@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:ordonez_vet/clientScreens/clientAppointmentsScreen.dart';
+import 'package:ordonez_vet/clientScreens/clientCalendarScreen.dart';
 import 'package:ordonez_vet/clientScreens/clientPetsScreen.dart';
 import 'package:ordonez_vet/clientScreens/clientProfile.dart';
 import 'package:quickalert/quickalert.dart';
@@ -62,7 +64,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   Icon(
                     Icons.person,
                     size: 70,
-                    color: Color(0xffFFC436),
+                    color: Colors.white,
                   ),
                   SizedBox(height: 8),
                   Text('My Profile'),
@@ -89,7 +91,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   Icon(
                     Icons.pets,
                     size: 70,
-                    color: Color(0xffFFC436),
+                    color: Colors.white,
                   ),
                   SizedBox(height: 8),
                   Text('My Pets'),
@@ -97,7 +99,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (BuildContext context) =>
+                        const ClientAppointmentsScreen(),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xff0174BE),
                 padding: const EdgeInsets.all(16),
@@ -112,7 +121,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   Icon(
                     Icons.calendar_month,
                     size: 70,
-                    color: Color(0xffFFC436),
+                    color: Colors.white,
                   ),
                   SizedBox(height: 8),
                   Text('My Appointments'),
@@ -121,7 +130,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                // Add your button click logic here
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (BuildContext context) =>
+                        const ClientCalendarScreen(),
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xff0174BE),
@@ -137,7 +151,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   Icon(
                     Icons.add_to_queue_sharp,
                     size: 70,
-                    color: Color(0xffFFC436),
+                    color: Colors.white,
                   ),
                   SizedBox(height: 8),
                   Text('Schedule Appointment'),

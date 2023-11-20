@@ -336,7 +336,6 @@ class _ClientPetsScreenState extends State<ClientPetsScreen> {
                   String petColor = pet['color'];
                   return Card(
                     elevation: 20,
-                    color: Colors.white,
                     child: InkWell(
                       onTap: () {
                         Navigator.of(context).push(CupertinoPageRoute(
@@ -394,10 +393,11 @@ class _ClientPetsScreenState extends State<ClientPetsScreen> {
                       child: ListTile(
                         title: Text(
                           pet['name'],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text(pet['species']),
-                        // Add more fields as needed
+                        subtitle: Text(
+                          pet['species'],
+                        ),
+                        trailing: const Icon(Icons.arrow_circle_right),
                       ),
                     ),
                   );

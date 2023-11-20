@@ -1,50 +1,38 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:ordonez_vet/clientScreens/clientPetDetailsEditScreen.dart';
 
-class ClientPetDetailsScreen extends StatefulWidget {
-  const ClientPetDetailsScreen(
-      {super.key,
-      required this.petName,
-      required this.petSpecies,
-      required this.petBreed,
-      required this.petSex,
-      required this.petBirthday,
-      required this.petColor});
+class AdminClientPetsViewDetailsScreen extends StatefulWidget {
+  const AdminClientPetsViewDetailsScreen(
+      {super.key, required this.petName, required this.uid});
 
+  final uid;
   final petName;
-  final petSpecies;
-  final petBreed;
-  final petSex;
-  final petBirthday;
-  final petColor;
 
   @override
-  State<ClientPetDetailsScreen> createState() => _ClientPetDetailsScreenState();
+  State<AdminClientPetsViewDetailsScreen> createState() =>
+      _AdminClientPetsViewDetailsScreenState();
 }
 
-class _ClientPetDetailsScreenState extends State<ClientPetDetailsScreen> {
-  String? userId = FirebaseAuth.instance.currentUser?.uid;
-
+class _AdminClientPetsViewDetailsScreenState
+    extends State<AdminClientPetsViewDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pet Details'),
-        centerTitle: true,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new,
           ),
           onPressed: () => Navigator.pop(context),
         ),
+        title: const Text('Client Pet'),
+        centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
             .collection('pets')
-            .where('user_uid', isEqualTo: userId)
+            .where('user_uid', isEqualTo: widget.uid)
             .where('name', isEqualTo: widget.petName)
             .snapshots(),
         builder: (context, snapshot) {
@@ -150,26 +138,6 @@ class _ClientPetDetailsScreenState extends State<ClientPetDetailsScreen> {
                             ),
                           ),
                           const SizedBox(height: 8.0),
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(context).push(CupertinoPageRoute(
-                                  builder: (BuildContext context) =>
-                                      ClientPetDetailsEditScreen(
-                                          petName: petName,
-                                          petSpecies: petSpecies,
-                                          petBreed: petBreed,
-                                          petSex: petSex,
-                                          petBirthday: petBirthday,
-                                          petColor: petColor)));
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xff0174BE),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                            ),
-                            child: const Text('Edit Profile'),
-                          ),
                         ],
                       ),
                     ),
