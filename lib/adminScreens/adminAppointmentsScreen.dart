@@ -83,6 +83,7 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
                   }
 
                   String id = appointment['id'] ?? 'Unknown Name';
+                  String pet = appointment['pet'] ?? 'Unknown Name';
                   Timestamp startTime =
                       appointment['startTime'] ?? Timestamp(0, 0);
                   Timestamp endTime = appointment['endTime'] ?? Timestamp(0, 0);
@@ -91,10 +92,7 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
                   DateTime endTimeDateTime = endTime.toDate();
 
                   String formattedDateStart =
-                      DateFormat('MMMM d, y hh:mm a').format(startTimeDateTime);
-
-                  String formattedDateEnd =
-                      DateFormat('MMMM d, y hh:mm a').format(endTimeDateTime);
+                      DateFormat('MMMM d, y ').format(startTimeDateTime);
 
                   bool done = appointment['done'];
                   bool accept = appointment['accept'];
@@ -138,54 +136,49 @@ class _AdminAppointmentsScreenState extends State<AdminAppointmentsScreen> {
                   }
 
                   return Padding(
-                    padding: const EdgeInsets.all(8.0),
+                    padding: const EdgeInsets.only(right: 8, left: 8, top: 2),
                     child: InkWell(
                       onTap: () {
                         // Handle appointment tap
                       },
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: InkWell(
-                          onTap: () {
-                            Navigator.of(context).push(
-                              CupertinoPageRoute(
-                                builder: (BuildContext context) =>
-                                    AdminAppointmentsDetailsScreen(
-                                  id: id,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (BuildContext context) =>
+                                  AdminAppointmentsDetailsScreen(
+                                id: id,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Card(
+                          elevation: 20,
+                          child: Column(
+                            children: [
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              ListTile(
+                                leading: iconStatus(),
+                                title: Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text('Pet: $pet\n'
+                                    'Start: $formattedDateStart'),
+                                trailing: const Icon(
+                                  Icons.arrow_circle_right,
+                                  color: Colors.black,
+                                  size: 25,
                                 ),
                               ),
-                            );
-                          },
-                          child: Card(
-                            elevation: 20,
-                            child: Column(
-                              children: [
-                                const SizedBox(
-                                  height: 10,
-                                ),
-                                ListTile(
-                                  leading: iconStatus(),
-                                  title: Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    'Start: $formattedDateStart\n'
-                                    'End: $formattedDateEnd',
-                                  ),
-                                  trailing: const Icon(
-                                    Icons.arrow_circle_right,
-                                    color: Colors.black,
-                                    size: 25,
-                                  ),
-                                ),
-                                const SizedBox(
-                                  height: 10,
-                                )
-                              ],
-                            ),
+                              const SizedBox(
+                                height: 10,
+                              )
+                            ],
                           ),
                         ),
                       ),

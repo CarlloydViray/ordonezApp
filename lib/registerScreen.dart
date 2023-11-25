@@ -18,6 +18,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? userSex;
   String? userType;
   final emailController = TextEditingController();
+  final phoneController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmpassController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
@@ -25,6 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final FocusNode _focusNode3 = FocusNode();
   final FocusNode _focusNode4 = FocusNode();
   final FocusNode _focusNode5 = FocusNode();
+  final FocusNode _focusNode6 = FocusNode();
 
   var obscurePassword = true;
   final _formkey = GlobalKey<FormState>();
@@ -130,6 +132,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       String uid = userCredential.user!.uid;
       FirebaseFirestore.instance.collection(collectionPath).doc(uid).set({
         'user_type': userType.toString(),
+        'user_phone': phoneController.text,
         'user_uid': uid,
         'user_fullName': fullNameController.text.trim(),
         'user_sex': userSex.toString(),
@@ -289,6 +292,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       filled: true,
                       fillColor: Colors.white,
                       labelStyle: TextStyle(color: Colors.black),
+                    ),
+                  ),
+
+                  const SizedBox(
+                    height: 12.0,
+                  ),
+
+                  //phone
+                  TextFormField(
+                    focusNode: _focusNode6,
+                    onFieldSubmitted: (value) {
+                      _focusNode.unfocus();
+                      validateInput();
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '*Required. Please enter a phone number.';
+                      }
+
+                      bool isValid =
+                          RegExp(r'^(?:\+63|0)?\d{10}$').hasMatch(value);
+                      if (!isValid) {
+                        return 'Invalid phone number. Please enter a valid Philippine phone number.';
+                      }
+
+                      return null;
+                    },
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone Number',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                      labelStyle: TextStyle(
+                        color: Colors.black,
+                      ),
                     ),
                   ),
 

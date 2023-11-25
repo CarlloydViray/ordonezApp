@@ -161,7 +161,7 @@ class _ClientPetsScreenState extends State<ClientPetsScreen> {
               ),
               const SizedBox(height: 12),
               //pet species
-              TextFormField(
+              TextField(
                 controller: petSpeciesController,
                 decoration: const InputDecoration(
                   labelText: 'Pet Species',
@@ -170,34 +170,10 @@ class _ClientPetsScreenState extends State<ClientPetsScreen> {
                   fillColor: Colors.white,
                   labelStyle: TextStyle(color: Colors.black),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter pet species';
-                  }
-                  return null;
-                },
                 textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 12),
-              //pet breed
-              TextFormField(
-                controller: petBreedController,
-                decoration: const InputDecoration(
-                  labelText: 'Pet Breed',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                  labelStyle: TextStyle(color: Colors.black),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter pet breed';
-                  }
-                  return null;
-                },
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 12),
+
               //pet sex
               DropdownButtonFormField<String>(
                 value: petSex,
@@ -228,48 +204,6 @@ class _ClientPetsScreenState extends State<ClientPetsScreen> {
                     petSex = value;
                   });
                 },
-              ),
-
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: petBirthdayController,
-                readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: 'Pet Birthday',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                  labelStyle: TextStyle(color: Colors.black),
-                ),
-                onTap: () {
-                  _selectDate(context);
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter pet birthday';
-                  }
-                  return null;
-                },
-                textCapitalization: TextCapitalization.words,
-              ),
-              const SizedBox(height: 12),
-              //pet color
-              TextFormField(
-                controller: petColorController,
-                decoration: const InputDecoration(
-                  labelText: 'Pet Color',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                  labelStyle: TextStyle(color: Colors.black),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter pet color';
-                  }
-                  return null;
-                },
-                textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 12),
             ],
@@ -317,7 +251,9 @@ class _ClientPetsScreenState extends State<ClientPetsScreen> {
               }
 
               if (!snapshot.hasData || snapshot.data == null) {
-                return const CircularProgressIndicator(); // or another loading indicator
+                return const Center(
+                    child:
+                        CircularProgressIndicator()); // or another loading indicator
               }
 
               var pets = snapshot.data!.docs;
@@ -392,10 +328,10 @@ class _ClientPetsScreenState extends State<ClientPetsScreen> {
                       },
                       child: ListTile(
                         title: Text(
-                          pet['name'],
+                          petName,
                         ),
                         subtitle: Text(
-                          pet['species'],
+                          petSpecies,
                         ),
                         trailing: const Icon(Icons.arrow_circle_right),
                       ),

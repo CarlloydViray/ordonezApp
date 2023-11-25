@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:googleapis_auth/googleapis_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:awesome_dialog/awesome_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,6 +11,9 @@ import 'package:flutter/material.dart';
 import 'package:ordonez_vet/models/calendarDataSource.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
+import "package:http/http.dart" as http;
+import 'package:googleapis_auth/auth_io.dart' as auth;
+import 'package:flutter/services.dart' show rootBundle;
 
 class ClientCalendarScreen extends StatefulWidget {
   const ClientCalendarScreen({super.key});
@@ -35,6 +41,123 @@ class _ClientCalendarScreenState extends State<ClientCalendarScreen> {
     loadPetNames();
   }
 
+  Future<String> obtainCredentials() async {
+    final keyFileData =
+        await rootBundle.loadString('assets/service-account.json');
+    final keyFile =
+        ServiceAccountCredentials.fromJson(json.decode(keyFileData));
+
+    final scopes = ['https://www.googleapis.com/auth/firebase.messaging'];
+
+    final client = await auth.clientViaServiceAccount(keyFile, scopes);
+    final accessToken = client.credentials.accessToken.data;
+
+    return accessToken;
+  }
+
+// Get all tokens
+  Future<List<String>> getAdminDeviceTokens() async {
+    try {
+      // Get the user IDs of admins
+      QuerySnapshot<Map<String, dynamic>> adminUsersSnapshot =
+          await FirebaseFirestore.instance
+              .collection("users")
+              .where('user_type', isEqualTo: 'Admin')
+              .get();
+
+      List<String> adminUserIds =
+          adminUsersSnapshot.docs.map((doc) => doc.id).toList();
+
+      // Get device tokens for admin users
+      List<String> tokens = [];
+
+      for (String userId in adminUserIds) {
+        DocumentSnapshot<Map<String, dynamic>> userTokensSnapshot =
+            await FirebaseFirestore.instance
+                .collection("UserTokens")
+                .doc(userId)
+                .get();
+
+        // Check if the 'deviceTokens' field exists and is not null
+        dynamic data = userTokensSnapshot.data();
+        if (data != null && data['deviceTokens'] != null) {
+          List<String> userTokens = List<String>.from(data['deviceTokens']);
+          tokens.addAll(userTokens);
+        }
+      }
+
+      return tokens;
+    } catch (e) {
+      print('Error getting admin device tokens: $e');
+      return [];
+    }
+  }
+
+  //push notif
+  void sendPushNotification(String body, String title) async {
+    try {
+      // Obtain FCM credentials
+      final result = await obtainCredentials();
+
+      if (result == null) {
+        // Handle the case where obtaining credentials failed
+        print('Failed to obtain FCM credentials');
+        return;
+      }
+
+      // Get all device tokens from Firestore
+      List<String> tokens = await getAdminDeviceTokens();
+
+      // Define your FCM server endpoint and authorization header
+      const String fcmEndpoint =
+          'https://fcm.googleapis.com/v1/projects/ordonez/messages:send';
+      String authorizationHeader = 'Bearer $result';
+
+      // Send notification to each device token
+      for (String token in tokens) {
+        try {
+          final response = await http.post(
+            Uri.parse(fcmEndpoint),
+            headers: <String, String>{
+              'Content-Type': 'application/json',
+              'Authorization': authorizationHeader,
+            },
+            body: jsonEncode(
+              <String, dynamic>{
+                'message': {
+                  'token': token,
+                  'notification': {
+                    'title': title,
+                    'body': body,
+                  },
+                  'data': <String, dynamic>{
+                    'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+                    'status': 'done',
+                    'body': body,
+                    'title': title,
+                  },
+                },
+              },
+            ),
+          );
+
+          // Handle the response as needed
+          if (response.statusCode == 200) {
+            print('Notification sent successfully to token: $token');
+          } else {
+            print(
+                'Error sending push notification to token: $token. Status code: ${response.statusCode}');
+            print('Response body: ${response.body}');
+          }
+        } catch (e) {
+          print('Error sending push notification: $e');
+        }
+      }
+    } catch (e) {
+      print('Error sending push notification: $e');
+    }
+  }
+
   Future<void> _selectDate(
       BuildContext context, TextEditingController controller) async {
     DateTime? picked = await showDatePicker(
@@ -45,85 +168,21 @@ class _ClientCalendarScreenState extends State<ClientCalendarScreen> {
     );
 
     if (picked != null) {
-      TimeOfDay? selectedTime = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.now(),
-      );
+      DateTime selectedDateTime =
+          DateTime(picked.year, picked.month, picked.day);
 
-      if (selectedTime != null) {
-        DateTime selectedDateTime = DateTime(picked.year, picked.month,
-            picked.day, selectedTime.hour, selectedTime.minute);
+      // Format the DateTime using intl package
+      String formattedDate = DateFormat('MMMM d, y ').format(selectedDateTime);
+      controller.text = formattedDate;
 
-        if (controller == checkInDateController) {
-          // Check if the selected date is after the check-out date
-          if (checkOutDate != null && selectedDateTime.isAfter(checkOutDate!)) {
-            // Show an error or handle the case where check-in date is after check-out date
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: const Text('Invalid Date'),
-                  content: const Text(
-                    'Check-in date cannot be after the check-out date.',
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('OK'),
-                    ),
-                  ],
-                );
-              },
-            );
-            return; // Stop further execution
-          }
+      // Format the DateTime using intl package
+      String formattedDate2 = DateFormat('MMMM d, y ').format(selectedDateTime);
+      controller.text = formattedDate2;
 
-          // Format the DateTime using intl package
-          String formattedDate =
-              DateFormat('MMMM d, y hh:mm a').format(selectedDateTime);
-          controller.text = formattedDate;
-
-          setState(() {
-            checkInDate = selectedDateTime;
-          });
-        } else if (controller == checkOutDateController) {
-          // Check if the selected date is before the check-in date
-          if (checkInDate != null && selectedDateTime.isBefore(checkInDate!)) {
-            // Show an error or handle the case where check-out date is before check-in date
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: const Text('Invalid Date'),
-                  content: const Text(
-                    'Check-out date cannot be before the check-in date.',
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('OK'),
-                    ),
-                  ],
-                );
-              },
-            );
-            return; // Stop further execution
-          }
-
-          // Format the DateTime using intl package
-          String formattedDate =
-              DateFormat('MMMM d, y hh:mm a').format(selectedDateTime);
-          controller.text = formattedDate;
-
-          setState(() {
-            checkOutDate = selectedDateTime;
-          });
-        }
-      }
+      setState(() {
+        checkInDate = selectedDateTime;
+        checkOutDate = selectedDateTime;
+      });
     }
   }
 
@@ -179,15 +238,11 @@ class _ClientCalendarScreenState extends State<ClientCalendarScreen> {
                   startTime.year,
                   startTime.month,
                   startTime.day,
-                  startTime.hour,
-                  startTime.minute,
                 ),
                 endTime: DateTime(
                   endTime.year,
                   endTime.month,
                   endTime.day,
-                  endTime.hour,
-                  endTime.minute,
                 ),
                 subject: pet,
                 color: const Color(0xff3876BF),
@@ -207,57 +262,70 @@ class _ClientCalendarScreenState extends State<ClientCalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text('Schedule'),
-          centerTitle: true,
-          leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new,
-            ),
-            onPressed: () => Navigator.pop(context),
+      appBar: AppBar(
+        actions: [
+          IconButton(
+              onPressed: () {
+                QuickAlert.show(
+                    context: context,
+                    type: QuickAlertType.info,
+                    title: 'Information',
+                    text:
+                        '\n1. All appointments are subject for approval regardless of time of appointment request.\n\n2. Disregard the time-in and time-out below the pet name of the appointment.\n\n3. Please bring your phone or a picture of the qr code before entering the clinic.\n\n4. All approved appointments are subject to "First-come, first-serve" basis, unless the doctor deemed it so.\n5. Appointments with the name BLOCKED, cannot be booked for reservation.');
+              },
+              icon: const Icon(Icons.help))
+        ],
+        title: const Text('Schedule'),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
           ),
+          onPressed: () => Navigator.pop(context),
         ),
-        body: StreamBuilder<List<Appointment>>(
-          stream: fetchAppointmentsFromFirebase(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              List<Appointment> appointments = snapshot.data!;
-              return Stack(children: [
-                SfCalendar(
-                  view: CalendarView.month,
-                  dataSource: MeetingDataSource(appointments),
-                  headerStyle:
-                      const CalendarHeaderStyle(textAlign: TextAlign.center),
-                  monthViewSettings: const MonthViewSettings(
-                      appointmentDisplayMode:
-                          MonthAppointmentDisplayMode.appointment,
-                      agendaViewHeight: 200,
-                      showAgenda: true),
+      ),
+      body: StreamBuilder<List<Appointment>>(
+        stream: fetchAppointmentsFromFirebase(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            List<Appointment> appointments = snapshot.data!;
+            return Stack(children: [
+              SfCalendar(
+                view: CalendarView.month,
+                dataSource: MeetingDataSource(appointments),
+                headerStyle:
+                    const CalendarHeaderStyle(textAlign: TextAlign.center),
+                monthViewSettings: const MonthViewSettings(
+                    appointmentDisplayMode:
+                        MonthAppointmentDisplayMode.appointment,
+                    agendaViewHeight: 150,
+                    showAgenda: true),
+              ),
+              Positioned(
+                bottom: 16.0,
+                right: 16.0,
+                child: FloatingActionButton(
+                  backgroundColor: const Color(0xffFFC436),
+                  onPressed: () {
+                    showTimestampDialog(context);
+                  },
+                  child: const Icon(Icons.add),
                 ),
-                Positioned(
-                  bottom: 16.0,
-                  right: 16.0,
-                  child: FloatingActionButton(
-                    backgroundColor: const Color(0xffFFC436),
-                    onPressed: () {
-                      showTimestampDialog(context);
-                    },
-                    child: const Icon(Icons.add),
-                  ),
-                ),
-              ]);
-            } else if (snapshot.hasError) {
-              print(snapshot.error);
-              return const Center(
-                child: Text('Error fetching appointments'),
-              );
-            } else {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
-          },
-        ));
+              ),
+            ]);
+          } else if (snapshot.hasError) {
+            print(snapshot.error);
+            return const Center(
+              child: Text('Error fetching appointments'),
+            );
+          } else {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+        },
+      ),
+    );
   }
 
   Future<void> showTimestampDialog(BuildContext context) async {
@@ -281,89 +349,87 @@ class _ClientCalendarScreenState extends State<ClientCalendarScreen> {
                     .doc('schedules')
                     .get();
 
-            List<dynamic> appointmentsData =
-                schedulesQuery.data()?['appointments'] ?? [];
-
-            bool hasConflict = false;
-
-            for (var appointmentData in appointmentsData) {
-              var startTime = appointmentData['startTime'];
-              var endTime = appointmentData['endTime'];
-
-              if (startTime != null &&
-                  endTime != null &&
-                  startTime is Timestamp &&
-                  endTime is Timestamp) {
-                if (startTime.toDate().isBefore(checkOutDate!) &&
-                    endTime.toDate().isAfter(checkInDate!)) {
-                  hasConflict = true;
-                  break; // Exit the loop if a conflict is found
-                }
-              }
+            String generateRandomID() {
+              Random random = Random();
+              int randomNumber = random.nextInt(900000) + 100000;
+              return randomNumber.toString();
             }
 
-            if (!hasConflict) {
-              String generateRandomID() {
-                Random random = Random();
-                int randomNumber = random.nextInt(900000) + 100000;
-                return randomNumber.toString();
-              }
+            DocumentReference unitRef = FirebaseFirestore.instance
+                .collection('appointments')
+                .doc('schedules');
 
-              DocumentReference unitRef = FirebaseFirestore.instance
-                  .collection('appointments')
-                  .doc('schedules');
+            String id = generateRandomID();
 
-              String id = generateRandomID();
+            String? userId = FirebaseAuth.instance.currentUser?.uid;
 
-              String? userId = FirebaseAuth.instance.currentUser?.uid;
+            DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .get();
 
-              DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .get();
+            if (userSnapshot.exists) {
+              Map<String, dynamic> userData =
+                  userSnapshot.data() as Map<String, dynamic>;
 
-              if (userSnapshot.exists) {
-                Map<String, dynamic> userData =
-                    userSnapshot.data() as Map<String, dynamic>;
+              if (userData.containsKey('user_fullName')) {
+                String userFullName = userData['user_fullName'];
+                await unitRef.update({
+                  'appointments': FieldValue.arrayUnion([
+                    {
+                      'endTime': checkOutDate,
+                      'startTime': checkInDate,
+                      'name': userFullName,
+                      'deny': false,
+                      'pet': selectedPet,
+                      'id': id,
+                      'user_uid': userId,
+                      'done': false,
+                      'accept': false,
+                      'timestamp': DateTime.now()
+                    }
+                  ])
+                });
 
-                if (userData.containsKey('user_fullName')) {
-                  String userFullName = userData['user_fullName'];
-                  await unitRef.update({
-                    'appointments': FieldValue.arrayUnion([
-                      {
-                        'endTime': checkOutDate,
-                        'startTime': checkInDate,
-                        'name': userFullName,
-                        'deny': false,
-                        'pet': selectedPet,
-                        'id': id,
-                        'user_uid': userId,
-                        'done': false,
-                        'accept': false,
-                        'timestamp': DateTime.now()
-                      }
-                    ])
-                  });
+                DocumentSnapshot<Map<String, dynamic>> userSnapshot =
+                    await FirebaseFirestore.instance
+                        .collection("users")
+                        .doc(userId)
+                        .get();
 
-                  QuickAlert.show(
-                      context: context,
-                      type: QuickAlertType.success,
-                      title: 'Appointment Requested');
+                // Check if the document exists and has data
+                if (userSnapshot.exists) {
+                  // Extract the full name from the user document
+                  String fullName =
+                      userSnapshot.data()?['user_fullName'] ?? 'Unknown';
+
+                  // Format the check-in date
+                  String dateTextCheckIn =
+                      DateFormat('MMMM dd, yyyy').format(checkInDate!);
+
+                  // Construct the body string
+                  String body =
+                      "Name: $fullName | Pet: $selectedPet | Appointment Date: $dateTextCheckIn";
+
+                  // Now you can use the 'body' string as needed
+                  print(body);
+                  String title = "APPOINTMENT REQUEST";
+
+                  sendPushNotification(body, title);
                 } else {
-                  print(
-                      'Field "client_full_name" does not exist in the document');
+                  print("User document not found for ID: $userId");
                 }
+
+                QuickAlert.show(
+                    context: context,
+                    type: QuickAlertType.success,
+                    title: 'Appointment Requested');
               } else {
-                print('Document with ID $userId does not exist');
+                print(
+                    'Field "client_full_name" does not exist in the document');
               }
             } else {
-              // Conflicts found, show an error message
-              QuickAlert.show(
-                context: context,
-                type: QuickAlertType.error,
-                title: 'Appointment Conflict',
-                text: 'The selected dates conflict with existing appointments.',
-              );
+              print('Document with ID $userId does not exist');
             }
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -441,22 +507,6 @@ class _ClientCalendarScreenState extends State<ClientCalendarScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: checkOutDateController,
-                readOnly: true,
-                onTap: () => _selectDate(context, checkOutDateController),
-                decoration: const InputDecoration(
-                  labelText: 'Check-out Date',
-                  border: OutlineInputBorder(),
-                  filled: true,
-                  fillColor: Colors.white,
-                  labelStyle: TextStyle(color: Colors.black),
-                  suffixIcon: Icon(Icons.date_range),
-                ),
-              ),
-              const SizedBox(
-                height: 12,
-              ),
             ],
           ),
         ),

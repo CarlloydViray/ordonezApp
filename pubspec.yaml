@@ -35,8 +35,11 @@ dependencies:
   email_validator: ^2.1.17
   firebase_auth: ^4.14.0
   firebase_core: ^2.22.0
+  firebase_messaging: ^14.7.5
   flutter:
     sdk: flutter
+  flutter_local_notifications: ^16.2.0
+  googleapis_auth: ^1.4.1
   pretty_qr_code: ^3.0.0
   qr_bar_code_scanner_dialog: ^0.0.5
   quickalert: ^1.0.2
@@ -44,9 +47,14 @@ dependencies:
   url_launcher: ^6.2.1
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
   flutter_lints: ^2.0.0
   flutter_test:
     sdk: flutter
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/logo_launcher.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

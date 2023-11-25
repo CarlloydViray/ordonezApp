@@ -62,7 +62,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
 
               // Display user data in your desired format
               return Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.only(right: 8, left: 8, top: 2),
                 child: InkWell(
                   onTap: () {
                     Navigator.of(context).push(

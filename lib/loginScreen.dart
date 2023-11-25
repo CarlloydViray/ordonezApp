@@ -50,6 +50,15 @@ class _LoginScreenState extends State<LoginScreen> {
               type: QuickAlertType.error,
               title: 'Incorrect Password!');
         }
+
+        //invalid-credential
+        if (err.code == 'invalid-credential') {
+          Navigator.pop(context);
+          QuickAlert.show(
+              context: context,
+              type: QuickAlertType.error,
+              title: 'User Not Found');
+        }
       });
     }
   }
@@ -69,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Icon(
                 Icons.pets_outlined,
                 size: 50,
-                color: Colors.white,
+                color: Color(0xffFFC436),
               )),
           const SizedBox(
             height: 10,

@@ -173,6 +173,75 @@ class _ClientAppointmentsScreenState extends State<ClientAppointmentsScreen> {
                 return startTimeA.compareTo(startTimeB);
               });
 
+              Widget textStatus() {
+                if (accept == true) {
+                  if (done == true) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Text('Status: '),
+                            Text(
+                              'DONE',
+                              style: TextStyle(color: Colors.green),
+                            ),
+                          ],
+                        ),
+                        Text('Date: $formattedDateStart')
+                      ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Text('Status: '),
+                          Text(
+                            'APPROVED',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        ],
+                      ),
+                      Text('Date: $formattedDateStart')
+                    ],
+                  );
+                } else if (deny) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Text('Status: '),
+                          Text(
+                            'DENIED',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
+                      ),
+                      Text('Date: $formattedDateStart')
+                    ],
+                  );
+                } else {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Text('Status: '),
+                          Text(
+                            'PENDING',
+                            style: TextStyle(color: Colors.black),
+                          ),
+                        ],
+                      ),
+                      Text('Date: $formattedDateStart')
+                    ],
+                  );
+                }
+              }
+
               Widget trailingIcon() {
                 if (accept == true) {
                   if (done == true) {
@@ -233,7 +302,7 @@ class _ClientAppointmentsScreenState extends State<ClientAppointmentsScreen> {
               }
 
               return Padding(
-                padding: const EdgeInsets.all(8.0),
+                padding: const EdgeInsets.only(right: 8, left: 8, top: 2),
                 child: Card(
                   elevation: 20,
                   child: InkWell(
@@ -241,7 +310,8 @@ class _ClientAppointmentsScreenState extends State<ClientAppointmentsScreen> {
                       QuickAlert.show(
                         context: context,
                         type: QuickAlertType.warning,
-                        title: 'Are you sure you want to delete record?',
+                        title:
+                            'Are you sure you want to cancel the appointment?',
                         onConfirmBtnTap: () {
                           Navigator.pop(context);
                           allAppointments.removeAt(index);
@@ -269,10 +339,7 @@ class _ClientAppointmentsScreenState extends State<ClientAppointmentsScreen> {
                           petName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text(
-                          'Start: $formattedDateStart\n'
-                          'End: $formattedDateEnd\n',
-                        ),
+                        subtitle: textStatus(),
                       ),
                     ),
                   ),

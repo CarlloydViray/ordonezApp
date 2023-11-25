@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:ordonez_vet/adminScreens/adminBlockPage.dart';
 import 'package:ordonez_vet/models/calendarDataSource.dart';
 import 'package:quickalert/quickalert.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
@@ -82,6 +83,17 @@ class _AdminCalendarScreenState extends State<AdminCalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        actions: [
+          IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (BuildContext context) => const AdminBlockPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.block))
+        ],
         title: const Text('Calendar Schedule'),
         centerTitle: true,
         leading: IconButton(
@@ -105,7 +117,7 @@ class _AdminCalendarScreenState extends State<AdminCalendarScreen> {
                 monthViewSettings: const MonthViewSettings(
                     appointmentDisplayMode:
                         MonthAppointmentDisplayMode.appointment,
-                    agendaViewHeight: 200,
+                    agendaViewHeight: 150,
                     showAgenda: true),
               ),
               Positioned(
@@ -159,74 +171,104 @@ class _AdminCalendarScreenState extends State<AdminCalendarScreen> {
       btnOkOnPress: () async {
         if (formKey.currentState!.validate()) {
           try {
-            // Check for conflicting appointments
-            DocumentSnapshot<Map<String, dynamic>> schedulesQuery =
-                await FirebaseFirestore.instance
-                    .collection('appointments')
-                    .doc('schedules')
-                    .get();
+            await FirebaseFirestore.instance
+                .runTransaction((transaction) async {
+              DocumentReference<Map<String, dynamic>> unitRef =
+                  FirebaseFirestore.instance
+                      .collection('appointments')
+                      .doc('schedules');
 
-            List<dynamic> appointmentsData =
-                schedulesQuery.data()?['appointments'] ?? [];
+              // Fetch the latest data within the transaction
+              DocumentSnapshot<Map<String, dynamic>> schedulesQuery =
+                  await transaction.get(unitRef);
 
-            bool hasConflict = false;
+              List<dynamic> appointmentsData =
+                  schedulesQuery.data()?['appointments'] ?? [];
 
-            for (var appointmentData in appointmentsData) {
-              var startTime = appointmentData['startTime'];
-              var endTime = appointmentData['endTime'];
+              // Check for conflicts with approved: false
+              bool hasConflict = appointmentsData.any((appointmentData) {
+                var startTime = appointmentData['startTime'];
+                var endTime = appointmentData['endTime'];
+                var accept = appointmentData['accept'];
 
-              if (startTime != null &&
-                  endTime != null &&
-                  startTime is Timestamp &&
-                  endTime is Timestamp) {
-                if (startTime.toDate().isBefore(checkOutDate!) &&
-                    endTime.toDate().isAfter(checkInDate!)) {
-                  hasConflict = true;
-                  break;
+                if (startTime != null &&
+                    endTime != null &&
+                    startTime is Timestamp &&
+                    endTime is Timestamp &&
+                    accept != null &&
+                    accept is bool &&
+                    accept) {
+                  // Change this condition to check if approved is true
+                  return startTime.toDate().isBefore(checkOutDate!) &&
+                      endTime.toDate().isAfter(checkInDate!);
                 }
-              }
-            }
 
-            if (!hasConflict) {
-              String generateRandomID() {
-                Random random = Random();
-                int randomNumber = random.nextInt(900000) + 100000;
-                return randomNumber.toString();
-              }
-
-              DocumentReference unitRef = FirebaseFirestore.instance
-                  .collection('appointments')
-                  .doc('schedules');
-
-              String id = generateRandomID();
-
-              String? userId = FirebaseAuth.instance.currentUser?.uid;
-
-              await unitRef.update({
-                'appointments': FieldValue.arrayUnion([
-                  {
-                    'endTime': checkOutDate,
-                    'startTime': checkInDate,
-                    'pet': 'BLOCKED',
-                    'id': id,
-                    'accept': true,
-                    'deny': false,
-                    'done': false,
-                    'user_uid': userId,
-                    'user_type': 'Admin',
-                    'timestamp': DateTime.now()
-                  }
-                ])
+                return false;
               });
-            } else {
-              // Conflicts found, show an error message
-              QuickAlert.show(
-                context: context,
-                type: QuickAlertType.error,
-                title: 'Appointment Conflict',
-                text: 'The selected dates conflict with existing appointments.',
-              );
-            }
+              // Check for conflicts with existing blocked dates
+              bool hasExistingBlockedDateConflict =
+                  appointmentsData.any((appointmentData) {
+                var startTime = appointmentData['startTime'];
+                var endTime = appointmentData['endTime'];
+                var pet = appointmentData['pet'];
+
+                if (startTime != null &&
+                    endTime != null &&
+                    startTime is Timestamp &&
+                    endTime is Timestamp &&
+                    pet != null &&
+                    pet is String &&
+                    pet == 'BLOCKED') {
+                  return startTime.toDate().isBefore(checkOutDate!) &&
+                      endTime.toDate().isAfter(checkInDate!);
+                }
+
+                return false;
+              });
+
+              if (!hasConflict && !hasExistingBlockedDateConflict) {
+                String generateRandomID() {
+                  Random random = Random();
+                  int randomNumber = random.nextInt(900000) + 100000;
+                  return randomNumber.toString();
+                }
+
+                String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+                // Update the document within the transaction
+                transaction.update(unitRef, {
+                  'appointments': FieldValue.arrayUnion([
+                    {
+                      'endTime': checkOutDate,
+                      'startTime': checkInDate,
+                      'pet': 'BLOCKED',
+                      'id': generateRandomID(),
+                      'accept': true,
+                      'deny': false,
+                      'done': false,
+                      'user_uid': userId,
+                      'user_type': 'Admin',
+                      'timestamp': DateTime.now(),
+                    }
+                  ])
+                });
+
+                QuickAlert.show(
+                  context: context,
+                  type: QuickAlertType.success,
+                  title: 'Dates Blocked',
+                );
+              } else {
+                // Conflicts found, show an error message
+                QuickAlert.show(
+                  context: context,
+                  type: QuickAlertType.error,
+                  title: 'Appointment Conflict',
+                  text:
+                      'The selected dates conflict with existing unapproved appointments or blocked dates.',
+                );
+              }
+            });
           } catch (e) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Failed to add appointment')),
@@ -285,7 +327,7 @@ class _AdminCalendarScreenState extends State<AdminCalendarScreen> {
               ),
               ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xff820000),
+                      backgroundColor: Colors.blue,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18))),
                   onPressed: () async {
@@ -310,7 +352,7 @@ class _AdminCalendarScreenState extends State<AdminCalendarScreen> {
                       });
                     }
                   },
-                  child: const Text('Add Appointment Date')),
+                  child: const Text('Add Appointment Date Range')),
             ],
           ),
         ),
